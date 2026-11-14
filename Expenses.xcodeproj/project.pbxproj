@@ -46,6 +46,7 @@
 			<array>
 				<string>000000000000000000000005</string>
 				<string>000000000000000000000003</string>
+				<string>000000000000000000000010</string>
 			</array>
 			<key>sourceTree</key>
 			<string>&lt;group&gt;</string>
@@ -72,6 +73,7 @@
 			<key>buildPhases</key>
 			<array>
 				<string>000000000000000000000007</string>
+				<string>000000000000000000000012</string>
 			</array>
 			<key>buildRules</key>
 			<array/>
@@ -208,6 +210,8 @@
 				<string>1.0</string>
 				<key>CURRENT_PROJECT_VERSION</key>
 				<string>1</string>
+				<key>ASSETCATALOG_COMPILER_APPICON_NAME</key>
+				<string>AppIcon</string>
 			</dict>
 		</dict>
 		<key>00000000000000000000000D</key>
@@ -260,7 +264,40 @@
 				<string>1.0</string>
 				<key>CURRENT_PROJECT_VERSION</key>
 				<string>1</string>
+				<key>ASSETCATALOG_COMPILER_APPICON_NAME</key>
+				<string>AppIcon</string>
 			</dict>
+		</dict>
+		<key>000000000000000000000010</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXFileReference</string>
+			<key>lastKnownFileType</key>
+			<string>folder.assetcatalog</string>
+			<key>path</key>
+			<string>Assets.xcassets</string>
+			<key>sourceTree</key>
+			<string>&lt;group&gt;</string>
+		</dict>
+		<key>000000000000000000000011</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXBuildFile</string>
+			<key>fileRef</key>
+			<string>000000000000000000000010</string>
+		</dict>
+		<key>000000000000000000000012</key>
+		<dict>
+			<key>isa</key>
+			<string>PBXResourcesBuildPhase</string>
+			<key>buildActionMask</key>
+			<string>2147483647</string>
+			<key>files</key>
+			<array>
+				<string>000000000000000000000011</string>
+			</array>
+			<key>runOnlyForDeploymentPostprocessing</key>
+			<string>0</string>
 		</dict>
 	</dict>
 	<key>rootObject</key>
