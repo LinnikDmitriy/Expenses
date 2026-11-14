@@ -3,6 +3,7 @@ import SwiftData
 
 @Model
 final class Expense {
+    var purchaseName: String?
     var kopiyky: Int
     var category: String
     var date: Date
@@ -14,11 +15,29 @@ final class Expense {
     }
 }
 
+@Model
+final class PlannedPurchase {
+    var name: String
+    var createdAt: Date
+
+    init(name: String) {
+        self.name = name
+        self.createdAt = .now
+    }
+}
+
 @main
 struct ExpensesApp: App {
     var body: some Scene {
-        WindowGroup { ExpenseList() }
-            .modelContainer(for: Expense.self)
+        WindowGroup {
+            TabView {
+                ShoppingPlan()
+                    .tabItem { Label("План покупок", systemImage: "checklist") }
+                ExpenseList()
+                    .tabItem { Label("Витрати", systemImage: "wallet.pass") }
+            }
+        }
+            .modelContainer(for: [Expense.self, PlannedPurchase.self])
     }
 }
 
@@ -62,7 +81,10 @@ struct ExpenseList: View {
                     ForEach(visible) { item in
                         HStack {
                             VStack(alignment: .leading) {
-                                Text(item.category)
+                                Text(item.purchaseName ?? item.category)
+                                if item.purchaseName != nil {
+                                    Text(item.category).font(.caption).foregroundStyle(.secondary)
+                                }
                                 Text(item.date, format: .dateTime.day().month(.wide).locale(Locale(identifier: "uk_UA")))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
@@ -96,6 +118,8 @@ struct ExpenseForm: View {
     @State private var category = "Продукти"
     @State private var date = Date.now
     @State private var saveFailed = false
+    var purchase: PlannedPurchase? = nil
+    @State private var expenseName = ""
     let onSave: (Date) -> Void
     private let categories = ["Продукти", "Транспорт", "Дім", "Здоров’я", "Дозвілля", "Інше"]
 
@@ -112,6 +136,11 @@ struct ExpenseForm: View {
     var body: some View {
         NavigationStack {
             Form {
+                if let purchase {
+                    LabeledContent("Покупка", value: purchase.name)
+                } else {
+                    TextField("Назва витрати (необов’язково)", text: $expenseName)
+                }
                 Section("Сума, грн") {
                     TextField("0,00", text: $amount).keyboardType(.decimalPad)
                 }
@@ -138,7 +167,11 @@ struct ExpenseForm: View {
 
     private func save() {
         guard let kopiyky else { return }
-        context.insert(Expense(kopiyky: kopiyky, category: category, date: date))
+        let expense = Expense(kopiyky: kopiyky, category: category, date: date)
+        let name = expenseName.trimmingCharacters(in: .whitespacesAndNewlines)
+        expense.purchaseName = purchase?.name ?? (name.isEmpty ? nil : name)
+        context.insert(expense)
+        if let purchase { context.delete(purchase) }
         do {
             try context.save()
             onSave(date)
@@ -146,6 +179,82 @@ struct ExpenseForm: View {
         } catch {
             context.rollback()
             saveFailed = true
+        }
+    }
+}
+
+struct ShoppingPlan: View {
+    @Environment(\.modelContext) private var context
+    @Query(sort: \PlannedPurchase.createdAt, order: .reverse) private var purchases: [PlannedPurchase]
+    @State private var draft = ""
+    @State private var buying: PlannedPurchase?
+    @State private var saveFailed = false
+
+    private var name: String {
+        draft.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+
+    var body: some View {
+        NavigationStack {
+            List {
+                Section {
+                    HStack {
+                        TextField("Що хочеш купити?", text: $draft)
+                            .submitLabel(.done)
+                            .onSubmit(add)
+                        Button(action: add) {
+                            Label("Додати", systemImage: "plus.circle.fill")
+                                .labelStyle(.iconOnly)
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(name.isEmpty)
+                    }
+                }
+                Section("Заплановано") {
+                    if purchases.isEmpty {
+                        Text("Список покупок порожній.").foregroundStyle(.secondary)
+                    }
+                    ForEach(purchases) { purchase in
+                        HStack {
+                            Text(purchase.name)
+                            Spacer()
+                            Button("Куплено") { buying = purchase }
+                                .buttonStyle(.bordered)
+                        }
+                        .swipeActions {
+                            Button("Видалити", role: .destructive) {
+                                context.delete(purchase)
+                                saveChanges()
+                            }
+                        }
+                    }
+                }
+            }
+            .navigationTitle("План покупок")
+            .sheet(item: $buying) { purchase in
+                ExpenseForm(purchase: purchase) { _ in }
+            }
+            .alert("Не вдалося зберегти зміни", isPresented: $saveFailed) {
+                Button("Гаразд") {}
+            }
+        }
+    }
+
+    private func add() {
+        guard !name.isEmpty else { return }
+        context.insert(PlannedPurchase(name: name))
+        if saveChanges() { draft = "" }
+    }
+
+    @discardableResult
+    private func saveChanges() -> Bool {
+        do {
+            try context.save()
+            return true
+        } catch {
+            context.rollback()
+            saveFailed = true
+            return false
         }
     }
 }
