@@ -82,9 +82,6 @@ struct ExpenseList: View {
                         HStack {
                             VStack(alignment: .leading) {
                                 Text(item.purchaseName ?? item.category)
-                                if item.purchaseName != nil {
-                                    Text(item.category).font(.caption).foregroundStyle(.secondary)
-                                }
                                 Text(item.date, format: .dateTime.day().month(.wide).locale(Locale(identifier: "uk_UA")))
                                     .font(.caption).foregroundStyle(.secondary)
                             }
@@ -115,13 +112,21 @@ struct ExpenseForm: View {
     @Environment(\.modelContext) private var context
     @Environment(\.dismiss) private var dismiss
     @State private var amount = ""
-    @State private var category = "Продукти"
     @State private var date = Date.now
     @State private var saveFailed = false
-    var purchase: PlannedPurchase? = nil
+    let purchase: PlannedPurchase?
     @State private var expenseName = ""
     let onSave: (Date) -> Void
-    private let categories = ["Продукти", "Транспорт", "Дім", "Здоров’я", "Дозвілля", "Інше"]
+
+    init(purchase: PlannedPurchase? = nil, onSave: @escaping (Date) -> Void) {
+        self.purchase = purchase
+        self.onSave = onSave
+        _expenseName = State(initialValue: purchase?.name ?? "")
+    }
+
+    private var name: String {
+        expenseName.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
 
     private var kopiyky: Int? {
         let value = amount.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -136,16 +141,11 @@ struct ExpenseForm: View {
     var body: some View {
         NavigationStack {
             Form {
-                if let purchase {
-                    LabeledContent("Покупка", value: purchase.name)
-                } else {
-                    TextField("Назва витрати (необов’язково)", text: $expenseName)
+                Section("Що придбано") {
+                    TextField("Наприклад, кава в зернах", text: $expenseName)
                 }
                 Section("Сума, грн") {
                     TextField("0,00", text: $amount).keyboardType(.decimalPad)
-                }
-                Picker("Категорія", selection: $category) {
-                    ForEach(categories, id: \.self) { Text($0) }
                 }
                 DatePicker("Дата", selection: $date, displayedComponents: .date)
                     .environment(\.locale, Locale(identifier: "uk_UA"))
@@ -156,7 +156,7 @@ struct ExpenseForm: View {
                     Button("Скасувати") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Зберегти", action: save).disabled(kopiyky == nil)
+                    Button("Зберегти", action: save).disabled(name.isEmpty || kopiyky == nil)
                 }
             }
             .alert("Не вдалося зберегти витрату", isPresented: $saveFailed) {
@@ -166,10 +166,9 @@ struct ExpenseForm: View {
     }
 
     private func save() {
-        guard let kopiyky else { return }
-        let expense = Expense(kopiyky: kopiyky, category: category, date: date)
-        let name = expenseName.trimmingCharacters(in: .whitespacesAndNewlines)
-        expense.purchaseName = purchase?.name ?? (name.isEmpty ? nil : name)
+        guard !name.isEmpty, let kopiyky else { return }
+        let expense = Expense(kopiyky: kopiyky, category: "", date: date)
+        expense.purchaseName = name
         context.insert(expense)
         if let purchase { context.delete(purchase) }
         do {
